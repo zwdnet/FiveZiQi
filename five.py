@@ -28,7 +28,9 @@ class chessboard():
         
     # 将棋盘转换成字符串
     def __str__(self):
+        enter = "\n"*10
         text = "  A B C D E F G H I J K L M N O\n"
+        text = enter+text
         mark = (". ", "O ", "X ")
         nrow = 0
         for row in self.__board:
@@ -138,6 +140,27 @@ class chessboard():
         
 # 双人对战游戏主循环
 def gamemain():
+    while True:
+        os.system("clear")
+        print("欢迎进入五子棋游戏!")
+        print("双人对战请选…………1")
+        print("退出………………………………2")
+        choice = input("请输入您的选择:")
+        # print(choice, type(choice), choice.isdigit(), int(choice))
+        if choice.isdigit() == False and int(choice) > 2:
+            print("输入错误请重新输入")
+            input("按任意键继续")
+            continue
+        choice = int(choice)
+        if choice == 1:
+            P2P()
+        elif choice == 2:
+            print("再见！")
+            exit(0)
+    
+            
+# 双人对战
+def P2P():
     who = 1
     b = chessboard()
     b.reset()
@@ -153,6 +176,7 @@ def gamemain():
         display(b)
         if b.check() == 1:
             print("第%d位游戏者赢了"%(who))
+            input("按任意键继续")
             return
         who = who+1
         while True:
@@ -161,6 +185,7 @@ def gamemain():
         if b.check() == 2:
             display(b)
             print("第%d位游戏者赢了"%(who))
+            input("按任意键继续")
             return
         display(b)
         who = who+1
@@ -170,7 +195,10 @@ def gamemain():
             
 # 下棋过程
 def putchess(who, board):
-    down = input("请第%d位游戏者下棋:"%(who))
+    down = input("请第%d位游戏者下棋:(输入两位字母坐标，输x退出)"%(who))
+    if down[0].upper() == 'X':
+        print("程序结束")
+        exit(1)
     if len(down) != 2 or down[0].upper() < 'A' or down[0].upper() > 'O' or down[1].upper() < 'A' or down[1].upper() > 'O':
         print("输入错误，请输入两位字母。")
         return False
