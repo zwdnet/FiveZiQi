@@ -3,17 +3,22 @@
 
 
 import sys, time, os
+import random
 
 
 # 棋盘类
 # 从字符串加载棋局或者导出字符串，判断输赢
 class chessboard():
-    def __init__(self, forbidden = 0):
-        self.__board = [[0 for n in range(15)] for m in range(15)]
+    def __init__(self, forbidden = 0, row = 15, col = 15):
+        self.__board = [[0 for n in range(row)] for m in range(col)]
         self.__forbidden = forbidden
         self.__dirs = ((-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1))
         self.DIRS = self.__dirs
         self.won = {}
+        self.count = 0    # 落子总数
+        self.row = row
+        self.col = col
+        self.last = [-1, -1]   # 最后一次落子的位置
         
     # 清空棋盘
     def reset(self):
@@ -53,9 +58,22 @@ class chessboard():
     def put(self, row, col, x):
         if (row >= 0 or row < 15 or col >= 0 or col < 15) and self.__board[row][col] == 0:
             self.__board[row][col] = x
+            self.count += 1
+            self.last[0] = row
+            self.last[1] = col
             return 0
         else:
             return 1
+            
+    # 获得最后一次落子的位置
+    def getLast(self):
+        return self.last
+            
+    # 判断是否棋盘已满
+    def full(self):
+        if self.count < self.row*self.col-1:
+            return False
+        return True
         
     # 判断输赢 0-无输赢 1-白赢 2-黑赢
     def check(self):
@@ -143,11 +161,12 @@ def gamemain():
     while True:
         os.system("clear")
         print("欢迎进入五子棋游戏!")
-        print("双人对战请选…………1")
-        print("退出………………………………2")
+        print("1.双人对战.")
+        print("2.人机对战(随机算法).")
+        print("3.退出.")
         choice = input("请输入您的选择:")
         # print(choice, type(choice), choice.isdigit(), int(choice))
-        if choice.isdigit() == False and int(choice) > 2:
+        if choice.isdigit() == False and int(choice) > 3:
             print("输入错误请重新输入")
             input("按任意键继续")
             continue
@@ -155,6 +174,8 @@ def gamemain():
         if choice == 1:
             P2P()
         elif choice == 2:
+            P2Random()
+        elif choice == 3:
             print("再见！")
             exit(0)
     
@@ -196,6 +217,9 @@ def P2P():
 # 下棋过程
 def putchess(who, board):
     down = input("请第%d位游戏者下棋:(输入两位字母坐标，输x退出)"%(who))
+    if len(down) == 0:
+        print("没有任何输入")
+        return False
     if down[0].upper() == 'X':
         print("程序结束")
         exit(1)
@@ -214,6 +238,72 @@ def putchess(who, board):
 def display(board):
     os.system("clear")
     print(board)
+    
+    
+# 人机对战的随机算法
+def P2Random():
+    who = 1
+    b = chessboard()
+    b.reset()
+    display(b)
+    # 游戏循环
+    while True:
+        # b.show()
+        # print(b)
+        while True:
+            if putchess(who, b) == True:
+                break
+        # b.show()
+        display(b)
+        if b.check() == 1:
+            print("您赢了")
+            input("按任意键继续")
+            return
+        who = who+1
+        if nearRandomPut(b, who) == False:
+            print("计算机无法落子，游戏结束!")
+            input("按任意键继续")
+            return
+        if b.check() == 2:
+            display(b)
+            print("电脑赢了!")
+            input("按任意键继续")
+            return
+        display(b)
+        who = who+1
+        if who > 2:
+            who = who - 2
+            
+            
+# 随机算法确定下棋位置
+def randomPut(board, who):
+    random.seed(time.time())
+    if board.full():
+        return False
+    while True:
+        i = random.randint(0, 14)
+        j = random.randint(0, 14)
+        if board[i][j] == 0:
+            board.put(i, j, who)
+            return True
+    return False
+    
+    
+# 改进随机算法，在对方上次落子位置附近5×5的范围内随机落子
+def nearRandomPut(board, who):
+    random.seed(time.time())
+    if board.full():
+        return False
+    last = board.getLast()
+    x = max(last[0] - 2, 0)
+    y = min(last[1] + 2, 14)
+    while True:
+        i = random.randint(x, y)
+        j = random.randint(x, y)
+        if board[i][j] == 0:
+            board.put(i, j, who)
+            return True
+    return False
 
 
 if __name__ == "__main__":
