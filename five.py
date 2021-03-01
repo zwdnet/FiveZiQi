@@ -4,6 +4,8 @@
 
 import sys, time, os
 import random
+import tqdm
+import run
 
 
 # 棋盘类
@@ -156,17 +158,19 @@ class chessboard():
         return 0
         
         
-# 双人对战游戏主循环
+# 游戏主循环
 def gamemain():
     while True:
         os.system("clear")
         print("欢迎进入五子棋游戏!")
         print("1.双人对战.")
         print("2.人机对战(随机算法).")
-        print("3.退出.")
+        print("3.比较随机算法.")
+        print("4.人机对战(博弈树算法).")
+        print("5.退出.")
         choice = input("请输入您的选择:")
         # print(choice, type(choice), choice.isdigit(), int(choice))
-        if choice.isdigit() == False and int(choice) > 3:
+        if choice.isdigit() == False and int(choice) > 5:
             print("输入错误请重新输入")
             input("按任意键继续")
             continue
@@ -176,6 +180,10 @@ def gamemain():
         elif choice == 2:
             P2Random()
         elif choice == 3:
+            compareRandom()
+        elif choice == 4:
+            P2Tree()
+        elif choice == 5:
             print("再见！")
             exit(0)
     
@@ -191,7 +199,7 @@ def P2P():
         # b.show()
         # print(b)
         while True:
-            if putchess(who, b) == True:
+            if putchess(b, who) == True:
                 break
         # b.show()
         display(b)
@@ -214,8 +222,8 @@ def P2P():
             who = who - 2
             
             
-# 下棋过程
-def putchess(who, board):
+# 人下棋过程
+def putchess(board, who):
     down = input("请第%d位游戏者下棋:(输入两位字母坐标，输x退出)"%(who))
     if len(down) == 0:
         print("没有任何输入")
@@ -295,40 +303,213 @@ def nearRandomPut(board, who):
     if board.full():
         return False
     last = board.getLast()
-    x = max(last[0] - 2, 0)
-    y = min(last[1] + 2, 14)
+    if last == [-1, -1]:
+        x = 7
+        y = 7
+    else:
+        x = last[0]
+        y = last[1]
+    count = 0
     while True:
-        i = random.randint(x, y)
-        j = random.randint(x, y)
+        count += 1
+        #  防止所有附近区域都下满的情况
+        if count >= 100: 
+            i = random.randint(0, 14)
+            j = random.randint(0, 14)
+        else:
+            i = random.randint(max(x-2, 0), min(x+2, 14))
+            j = random.randint(max(y-2, 0), min(y+2, 14))
         if board[i][j] == 0:
             board.put(i, j, who)
             return True
     return False
+    
+    
+# 算法与算法(包括人)之间对弈的一般过程
+def contest(method1, method2, show = True):
+    random.seed(time.time())
+    methods = [method1, method2]
+    b = chessboard()
+    b.reset()
+    if show:
+        display(b)
+    # 游戏循环
+    while True:
+        first = random.randint(1, 2)
+        if first == 1:
+            second = 2
+        else:
+            second = 1
+        while True:
+            if methods[first-1](b, first) == True:
+                break
+        if show:
+            display(b)
+        if b.check() == first:
+            return first
+        if methods[second -1](b, second) == False:
+            print("无法落子，游戏结束!")
+            input("按任意键继续")
+            return -1
+        if b.check() == second:
+            if show:
+                display(b)
+            return second
+        if show:
+            display(b)
+        
+    return -1
+    
+    
+# 比较两种随机算法
+def compareRandom():
+    win = [0, 0]
+    b = chessboard()
+    while True:
+        epochs = input("请输入对弈次数:")
+        if epochs.isdigit() and int(epochs) > 0:
+            epochs = int(epochs)
+            break
+    for i in tqdm.tqdm(range(epochs)):
+        b.reset()
+        result = contest(randomPut, nearRandomPut, show = False)
+        win[result-1] += 1
+        # print("第%d次对弈，%d取胜" % (i+1, result))
+        
+    winrate = [win[0]/epochs, win[1]/epochs]
+    print("获胜概率:", winrate)
+    input("按任意键继续")
+    
+    
+# ————搜索树算法————
+# 参考 https://github.com/skywind3000/gobang/blob/master/gobang.py
+
+# 棋盘评估类，给当前棋盘打分
+class evaluation:
+    def __init__(self):
+        self.POS = [[0 for n in range(15)] for i in range(15)]
+        
+    # 四个方向(水平垂直左斜又斜)分析棋盘，评分
+    def evaluate(self, board, turn):
+        return 0
+    
+    
+# 深度优先搜索树
+class searcher:
+    # 初始化
+    def __init__(self, row = 15, col = 15):
+        self.evaluator = evaluation()
+        self.row = row
+        self.col = col
+        self.board = [[0 for n in range(self.row)] for i in range(self.col)]
+        self.gameover = 0
+        self.overvalue = 0
+        self.maxdepth = 3
+        
+    # 产生当前棋局的走法
+    def genmove(self, turn):
+        moves = []
+        board = self.board
+        POSES = self.evaluator.POS
+        for i in range(self.row):
+            for j in range(self.col):
+                if board[i][j] == 0:
+                    score = POSES[i][j]
+                    moves.append((score, i, j))
+        moves.sort()
+        moves.reverse()
+        return moves
+        
+    # 递归搜索，返回最佳分数
+    def __search(self, turn, depth, alpha = -0x7fffffff, beta = 0x7fffffff):
+        # 深度为零，评估棋盘并返回
+        if depth <= 0:
+            score = self.evaluator.evaluate(self.board, turn)
+            return score
+            
+        # 游戏结束，立马返回
+        score = self.evaluator.evaluate(self.board, turn)
+        if abs(score) >= 9999 and depth < self.maxdepth:
+            return score
+            
+        # 产生新的走法
+        moves = self.genmove(turn)
+        bestmove = None
+        
+        # 枚举当前所有走法
+        for score, row, col in moves:
+            # 标记当前走法到棋盘
+            self.board[row][col] = turn
+            # 计算下一回合该谁走
+            nturn = turn == 1 and 2 or 1
+            # 深度优先搜索，返回评分，走的行和列
+            score = -self.__search(nturn, depth-1, -beta, -alpha)
+            # 棋盘上清除当前走法
+            self.board[row][col] = 0
+            
+            # 计算最好分值的走法
+            # alpha/beta剪枝
+            if score > alpha:
+                alpha = score
+                bestmove = (row, col)
+                if alpha >= beta:
+                    break
+                
+        # 如果是第一层，记录最好的走法
+        if depth == self.maxdepth and bestmove:
+            self.bestmove = bestmove
+            
+        # 返回当前最好分数，及对应走法
+        return alpha
+        
+    # 具体搜索
+    def search(self, turn, depth = 3):
+        self.maxdepth = depth
+        self.bestmove = None
+        score = self.__search(turn, depth)
+        if abs(score) > 8000:
+            self.maxdepth = depth
+            score = self.__search(turn, 1)
+        row, col = self.bestmove
+        return score, row, col
+        
+        
+# 测试搜索算法
+def testsearch():
+    b = chessboard()
+    s = searcher()
+    s.board = b.board()
+    
+    
+# 人机对战，博弈树算法
+def P2Tree():
+    b = chessboard()
+    b.reset()
+    result = contest(putchess, treePut, show = True)
+    if result == 1:
+        print("您赢了！")
+    elif result == 2:
+        print("计算机赢了!")
+    else:
+        print("和棋")
+    
+    
+# 博弈树算法下棋过程
+def treePut(board, who):
+    s = searcher()
+    s.board = board
+    
+    # 设置难度
+    DEPTH = 1
+    score, row, col = s.search(who, DEPTH)
+    if board[row][col] == 0:
+        board.put(row, col, who)
+        return True
+    return False
+    
 
 
 if __name__ == "__main__":
-    def test1():
-        print("测试1")
-        b = chessboard()
-        b[10][10] = 1
-        b[11][11] = 2
-        for i in range(4):
-            b[5+i][2+i] = 2
-        for i in range(4):
-            b[7-0][3+i] = 2
-        print(b)
-        print("check", b.check())
-        return 0
-        
-    def test2():
-        print("测试2")
-        b = chessboard()
-        b[7][7] = 1
-        b[8][8] = 2
-        b[7][9] = 1
-        
-    # test1()
     gamemain()
-    # x = input("请输入:")
-    # print(x, len(x), x[0], x[1])
+    # testsearch()
     
