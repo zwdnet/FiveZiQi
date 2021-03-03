@@ -173,10 +173,12 @@ def gamemain():
         print("2.人机对战(随机算法).")
         print("3.比较随机算法.")
         print("4.人机对战(博弈树算法).")
-        print("5.退出.")
+        print("5.比较随机算法和博弈树算法.")
+        print("6.比较不同深度的博弈树算法.")
+        print("7.退出.")
         choice = input("请输入您的选择:")
         # print(choice, type(choice), choice.isdigit(), int(choice))
-        if choice.isdigit() == False and int(choice) > 5:
+        if choice.isdigit() == False or int(choice) > 7:
             print("输入错误请重新输入")
             input("按任意键继续")
             continue
@@ -190,6 +192,10 @@ def gamemain():
         elif choice == 4:
             P2Tree()
         elif choice == 5:
+            compareRandomTree()
+        elif choice == 6:
+            compareTrees()
+        elif choice == 7:
             print("再见！")
             exit(0)
     
@@ -332,7 +338,7 @@ def nearRandomPut(board, who):
     
     
 # 算法与算法(包括人)之间对弈的一般过程
-def contest(method1, method2, show = True):
+def contest(method1, method2, show = True, bTree = False, depth1 = 0, depth2 = 0):
     random.seed(time.time())
     methods = [method1, method2]
     b = chessboard()
@@ -347,16 +353,26 @@ def contest(method1, method2, show = True):
     # 游戏循环
     while True:
         while True:
-            if methods[first-1](b, first) == True:
-                break
+            if bTree == False:
+                if methods[first-1](b, first) == True:
+                    break
+            else:
+                if methods[first-1](b, first, depth1) == True:
+                    break
         if show:
             display(b)
         if b.check() == first:
             return first
-        if methods[second -1](b, second) == False:
-            print("无法落子，游戏结束!")
-            input("按任意键继续")
-            return -1
+        if bTree == False:
+            if methods[second -1](b, second) == False:
+                print("无法落子，游戏结束!")
+                input("按任意键继续")
+                return -1
+        else:
+            if methods[second -1](b, second, depth2) == False:
+                print("无法落子，游戏结束!")
+                input("按任意键继续")
+                return -1
         if b.check() == second:
             if show:
                 display(b)
@@ -943,7 +959,7 @@ def P2Tree():
     
     
 # 博弈树算法下棋过程
-def treePut(board, who):
+def treePut(board, who, depth = 1):
     # 如果是先手，随机下一个地方
     last = board.getLast()
     if last == [-1, -1]:
@@ -957,13 +973,70 @@ def treePut(board, who):
     s.board = board
     
     # 设置难度
-    DEPTH = 1
+    DEPTH = depth
     score, row, col = s.search(who, DEPTH)
     if board[row][col] == 0:
         board.put(row, col, who)
         return True
     return False
     
+    
+# 比较随机算法和博弈树算法
+def compareRandomTree():
+    win = [0, 0]
+    b = chessboard()
+    while True:
+        epochs = input("请输入对弈次数:")
+        if epochs.isdigit() and int(epochs) > 0:
+            epochs = int(epochs)
+            break
+    for i in tqdm.tqdm(range(epochs)):
+        b.reset()
+        result = contest(nearRandomPut, treePut, show = False)
+        win[result-1] += 1
+        # print("第%d次对弈，%d取胜" % (i+1, result))
+        
+    winrate = [win[0]/epochs, win[1]/epochs]
+    print("获胜概率:", winrate)
+    input("按任意键继续")
+    
+    
+# 比较不同搜索深度的博弈树算法
+def compareTrees():
+    win = [0, 0]
+    b = chessboard()
+    while True:
+        epochs = input("请输入对弈次数:")
+        if epochs.isdigit() and int(epochs) > 0:
+            epochs = int(epochs)
+            break
+    while True:
+        depth1 = input("请输入算法1的搜索深度:")
+        if depth1.isdigit() and int(depth1) > 0:
+            depth1 = int(depth1)
+            break
+    while True:
+        depth2 = input("请输入算法2的搜索深度:")
+        if depth2.isdigit() and int(depth2) > 0:
+            depth2 = int(depth2)
+            break
+    while True:
+        bShow = input("是否输出棋盘?(Y/N)")
+        if bShow.upper() == "Y":
+            bShow = True
+            break
+        elif bShow.upper() == "N":
+            bShow = False
+            break
+    for i in tqdm.tqdm(range(epochs)):
+        b.reset()
+        result = contest(treePut, treePut, show = bShow, bTree = True, depth1 = depth1, depth2 = depth2)
+        win[result-1] += 1
+        # print("第%d次对弈，%d取胜" % (i+1, result))
+        
+    winrate = [win[0]/epochs, win[1]/epochs]
+    print("获胜概率:", winrate)
+    input("按任意键继续")
 
 
 if __name__ == "__main__":
