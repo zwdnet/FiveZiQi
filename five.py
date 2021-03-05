@@ -874,9 +874,22 @@ class searcher:
         moves = []
         board = self.board
         POSES = self.evaluator.POS
+        n = 5
+        bDo = True
         for i in range(self.row):
             for j in range(self.col):
-                if board[i][j] == 0:
+                # 检查当前点周围(n+1)**2个位置有无棋子，没有就不考虑了。
+                left = max(0, i-n)
+                right = min(i+n, self.col)
+                up = max(0, j-n)
+                down = min(j+n, self.row)
+                bDo = False
+                for x in range(up, down):
+                    for y in range(left, right):
+                        # print("x=%d y=%d" % (x, y))
+                        if board[x][y] != 0:
+                            bDo = True
+                if board[i][j] == 0 and bDo == True:
                     score = POSES[i][j]
                     moves.append((score, i, j))
         moves.sort()
@@ -897,6 +910,7 @@ class searcher:
             
         # 产生新的走法
         moves = self.genmove(turn)
+        # print("步数数量%d"%(len(moves)))
         bestmove = None
         
         # 枚举当前所有走法
@@ -959,12 +973,12 @@ def P2Tree():
     
     
 # 博弈树算法下棋过程
-def treePut(board, who, depth = 1):
+def treePut(board, who, depth = 2):
     # 如果是先手，随机下一个地方
     last = board.getLast()
     if last == [-1, -1]:
-        row = random.randint(0, 14)
-        col = random.randint(0, 14)
+        row = random.randint(5, 10)
+        col = random.randint(5, 10)
         if board[row][col] == 0:
             board.put(row, col, who)
             return True
