@@ -6,7 +6,7 @@
 import numpy as np
 import copy
 from operator import itemgetter
-from tools import *
+# from tools import *
 
 
 # 棋盘类 暂时用一下，再改我的
@@ -243,13 +243,28 @@ class MCTS:
         else:
             return 1 if winner == player else -1
             
+    # 获取走法的概率
+    def get_move_probs(self, state, temp=1e-3):
+        for n in range(self._n_playout):
+            state_copy = copy.deepcopy(state)
+            self._playout(state_copy)
+
+        act_visits = [(act, node._n_visits)
+ for act, node in self._root._children.items()]
+        acts, visits = zip(*act_visits)
+        act_probs = softmax(1.0/temp * np.log(np.array(visits) + 1e-10))
+
+        return acts, act_probs
+            
     # 返回访问最多的走法
     def get_move(self, state):
         for n in range(self._n_playout):
             state_copy = copy.deepcopy(state)
             self._playout(state_copy)
-        return max(self._root._children.items(),
-                   key=lambda act_node: act_node[1]._n_visits)[0]
+        move = max(self._root._children.items(), key=lambda act_node: act_node[1]._n_visits)[0]
+        # action_probs, _ = self._policy(state)
+        # move_probs = max(action_probs)
+        return move
             
     # 反向传播
     def update_with_move(self, last_move):
@@ -274,12 +289,16 @@ class MCTSPlayer:
     def reset_player(self):
         self.mcts.update_with_move(-1)
         
-    def get_action(self, board):
+    def get_action(self, board, temp = 0, return_prob = False):
         sensible_moves = board.availables
         if len(sensible_moves) > 0:
             move = self.mcts.get_move(board)
             self.mcts.update_with_move(-1)
-            return move
+            if return_prob == False:
+                return move
+            else:
+                _, prob = self.mcts.get_move_probs(move)
+                return move, max(prob)
         else:
             print("棋盘满了")
             
@@ -374,4 +393,7 @@ if __name__ == "__main__":
                 print("Game end. Tie")
             break
         
-    
+def softmax(x):
+    probs = np.exp(x - np.max(x))
+    probs /= np.sum(probs)
+    return probs

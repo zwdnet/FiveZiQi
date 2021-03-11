@@ -6,9 +6,12 @@
 import sys, time, os
 import random
 import tqdm
+import pickle
 import run
 from searchTree import *
 from mcts import *
+from policy_value_net import PolicyValueNet
+from mcts_alphaZero import AlphaZeroMctsPlayer as MCTSPlayer
 
 
 # 棋盘类
@@ -27,19 +30,21 @@ class chessboard():
         # 为适应蒙特卡罗树搜索加的内容
         self.states = {}
         self.availables = list(range(self.row * self.col))
-        self.current_player = 0
+        self.current_player = 1
         self.players = [1, 2]
         self.width = row
         self.height = col
         
     # 清空棋盘
-    def reset(self):
+    def reset(self, start_player = 1):
         for j in range(self.col):
             for i in range(self.row):
                 self.__board[i][j] = 0
         self.states = {}
         self.availables = list(range(self.row * self.col))
-        self.current_player = 0
+        self.current_player = start_player
+        self.count = 0
+        self.last = [-1, -1]
         return 0
         
     # 索引器
@@ -231,6 +236,7 @@ class chessboard():
             self.players[0] if self.current_player == self.players[1]
             else self.players[1]
         )
+        self.last_move = move
         return True
         # print("测试b", self.current_player, move, row, col)
         # self.last_move = move
@@ -239,6 +245,25 @@ class chessboard():
         if who not in (1, 2):
             return
         self.current_player = who
+        
+    def current_state(self):
+        """
+        以当前下棋者的视角返回4*row*col的棋盘状态
+        """
+        square_state = np.zeros((4, self.row, self.col))
+        if self.states:
+            moves, players = np.array(list(zip(*self.states.items())))
+            move_curr = moves[players == self.current_player]
+            move_oppo = moves[players != self.current_player]
+            square_state[0][move_curr // self.width,
+                            move_curr % self.height] = 1.0
+            square_state[1][move_oppo // self.width, move_oppo % self.height] = 1.0
+            # 最后一次落子位置
+            square_state[2][self.last_move // self.width, self.last_move % self.height] = 1.0
+        if len(self.states) % 2 == 0:
+            square_state[3][:, :] = 1.0  # indicate the colour to play
+        return square_state[:, ::-1, :]
+
         
         
 # 人下棋过程
@@ -419,4 +444,36 @@ def MCTSput(board, who, n_playout = 400):
     #print(board.current_player, who)
 #    input("按任意键继续")
     return board.do_move(move)
+    
+    
+# 强化学习算法落子
+@run.change_dir
+def RLput(board, who, n_playout = 400):
+    model_file = "./best_policy.model"
+    # policy_param = pickle.load(open(model_file, 'rb'), encoding='bytes')
+    best_policy = PolicyValueNet(board.width, board.height, model_file = model_file)
+    mcts_player = MCTSPlayer(best_policy.policy_value_fn, c_puct=5, n_playout=400)
+    # 设置当前下棋者，使用do_move的才要
+    # board.set_current_player(who)
+    # 如果是先手，随机下一个地方
+    last = board.getLast()
+    if last == [-1, -1]:
+        row = random.randint(2, 5)
+        col = random.randint(2, 5)
+        if board[row][col] == 0:
+            move = board.location_to_move((row, col))
+            if board.do_move(move):
+                return True
+        return False
+    # 不是先手
+    move = mcts_player.get_action(board)
+    #print(board.current_player, who)
+#    input("按任意键继续")
+    return board.do_move(move)
+    
+   
+def softmax(x):
+    probs = np.exp(x - np.max(x))
+    probs /= np.sum(probs)
+    return probs
     
