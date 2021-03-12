@@ -42,10 +42,10 @@ class TrainPipeline:
         self.pure_mcts_playout_num = 400
         # 有预训练模型的情况
         if init_model:
-            self.policy_value_net = PolicyValueNet(self.board_width, self.board_height, model_file=init_model)
+            self.policy_value_net = PolicyValueNet(self.board_width, self.board_height, model_file=init_model, use_gpu = True)
         else:
             # 从头开始训练
-            self.policy_value_net = PolicyValueNet(self.board_width, self.board_height)
+            self.policy_value_net = PolicyValueNet(self.board_width, self.board_height, use_gpu = True)
         self.mcts_player = MCTSPlayer(self.policy_value_net.policy_value_fn, c_puct=self.c_puct, n_playout=self.n_playout, is_selfplay=1)
         
     # 扩充训练数据
